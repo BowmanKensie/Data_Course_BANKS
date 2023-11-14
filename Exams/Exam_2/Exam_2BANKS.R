@@ -7,7 +7,7 @@ library(easystats)
 #I'm making a general path to retrieve the data
 Mortality <- read.csv("./unicef-u5mr.csv") %>%  
 #Cleaning into longer form
-  clean_names() %>% 
+  janitor::clean_names() %>% 
   pivot_longer(cols = starts_with("u5mr_"), #there are 69 cols of years and I want to shrink it to just one "year" col
                names_to = "year",
                values_to = "mortality_rate") %>% 
