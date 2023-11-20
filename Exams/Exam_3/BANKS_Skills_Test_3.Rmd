@@ -1,0 +1,102 @@
+---
+title: "BANKS_Skills_Test_3.Rmd"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+library(stats)
+library(broom)
+```
+### Welcome
+
+Welcome to my skills test where I will be demonstrating my understanding on how to correctly tidy data, make plots, organize an ANOVA table and create linear models. 
+
+### Cleaning and Plotting Salaries
+```{r}
+#Using a relative pathway to load the file.
+Salaries <- read.csv("./FacultySalaries_1995.csv") %>%
+  janitor::clean_names() %>%
+  pivot_longer(cols = c("avg_full_prof_salary", "avg_assoc_prof_salary", "avg_assist_prof_salary"),
+               names_to = "rank", values_to = "salary") %>%
+  mutate(rank = sub("avg_", "", rank), #here I am trying to make it easier to pull the names of each column.
+         rank = sub("_prof_salary", "", rank),
+         rank = str_to_title(rank))
+
+#I don't need the tier VIIB so this will remove all rows with VIIB so it doesn't show up in the graph.
+fixing_tier <- Salaries %>% filter(tier != "VIIB") 
+
+#Now I'm making a plot of the salaries by rank and school tier.
+ggplot(fixing_tier, aes(x = rank, y = salary, fill = rank)) +
+  geom_boxplot(width = 0.25) +
+  facet_wrap(~tier) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+  labs(title = "Salary Distribution by Rank and Tier", x = "Rank", y = "Salary")
+```
+
+In this plot we are able to observe the differing salaries of assistant professors, associate professors and full professors based on the tier of university they work at. We can clearly see that the full professors who work at a tier one school where they focus on research and award PhD degress, make much more compared to those that are at a tier 2B school. 
+
+### ANOVA Table
+```{r}
+#I am building a linear regression model without interactions
+model <- lm(salary ~ state + tier + rank, data = fixing_tier)
+
+#Perform ANOVA
+anova_result <- anova(model)
+
+#Display summary
+summary(model)
+```
+
+This is an ANOVA model  that tests the influence of "state", "tier" and "rank" on "salary" but doesn't include any of the of the interactions between these predictors. 
+
+### Cleaning and Plotting Juniper
+```{r}
+#Lets clean the Juniper data
+Juniper <- read.csv("./Juniper_Oils.csv") %>% 
+  janitor::clean_names() %>% 
+  pivot_longer(cols = c("alpha_pinene","para_cymene","alpha_terpineol","cedr_9_ene","alpha_cedrene","beta_cedrene","cis_thujopsene","alpha_himachalene","beta_chamigrene","cuparene","compound_1","alpha_chamigrene","widdrol","cedrol","beta_acorenol","alpha_acorenol","gamma_eudesmol","beta_eudesmol","alpha_eudesmol","cedr_8_en_13_ol","cedr_8_en_15_ol","compound_2","thujopsenal"),
+               names_to = "chemicalID", values_to = "concentration") %>% 
+  mutate(chemicalID = sub("_", "-", chemicalID)) #the "clean_names" function adds "_" so I'm trying to replace it with a "-" instead. 
+
+#Now im going to plot "years since burn" by "concentration" and facet wrap them by "ChemicalID"
+ggplot(data = Juniper, aes(x = years_since_burn, y = concentration)) +
+  geom_smooth(method = "loess", scales = "free", color = "purple") +
+  labs(title = "Concentration of Chemical-ID by Years Since Burn",
+       x = "Years Since Burn",
+       y = "Concentration") +
+  facet_wrap(~chemicalID, scales = "free") +
+  theme_minimal()
+```
+
+This plot is unique because it takes data that was part of a collaboration between Young Living inc. and UVU. Some cedar trees were collected after a fire killed them and their chemical composition was taken. This plot shows the concentration of these chemicals in the years since the fire occurred. 
+
+### GLM Model
+```{r}
+echo = TRUE
+
+#I am making a model that will only show the significant chemicals and their model output
+glm_model <- glm(formula = concentration ~ years_since_burn * chemicalID, data = Juniper, family = "gaussian") %>% 
+  tidy() %>% #using the Broom package
+  filter(p.value < 0.05) %>% 
+  mutate(term = str_remove(term, "chemicalID")) #it keeps adding "chemicalID before the name of every chemical, this is how i'm getting rid of it.
+
+view(glm_model)
+
+```
+
+This data frame shows a linear model to find which chemicals show concentrations that are significantly affected by "years since burn". 
+
+Thanks for taking the time to look through my skills test! Hope you liked what you saw.
+
+
